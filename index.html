@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Pembelajaran: Asosiasi Dua Variabel</title>
+    
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            blue: '#1e3a8a',
+                            lightBlue: '#3b82f6',
+                            yellow: '#facc15',
+                            white: '#ffffff',
+                            dark: '#0f172a',
+                            gray: '#f1f5f9'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { margin: 0; padding: 0; background-color: #0f172a; overflow: hidden; }
+        .aspect-video-container {
+            width: 100vw;
+            height: 56.25vw;
+            max-height: 100vh;
+            max-width: 177.78vh;
+            margin: auto;
+            position: absolute;
+            top: 0; bottom: 0; left: 0; right: 0;
+        }
+        /* Custom scrollbar just in case, but design prevents scrolling */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .btn-hover { transition: all 0.2s ease-in-out; }
+        .btn-hover:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Data Kuis
+        const rawQuizData = [
+            { q: "Manakah di bawah ini yang merupakan contoh variabel kualitatif (kategorikal)?", options: ["Tinggi badan", "Nilai ulangan", "Jenis transportasi ke sekolah", "Waktu tempuh ke sekolah"], answer: 2 },
+            { q: "Manakah di bawah ini yang merupakan contoh variabel kuantitatif (numerikal)?", options: ["Warna favorit", "Jumlah jam belajar", "Golongan darah", "Program ekstrakurikuler"], answer: 1 },
+            { q: "Untuk melihat asosiasi antara dua variabel kualitatif, cara terbaik adalah menggunakan...", options: ["Diagram pencar (Scatter plot)", "Tabel kontingensi", "Diagram garis", "Histogram"], answer: 1 },
+            { q: "Diagram pencar (scatter plot) sangat cocok digunakan untuk melihat hubungan antara...", options: ["Dua variabel kualitatif", "Satu variabel kualitatif dan satu kuantitatif", "Dua variabel kuantitatif", "Tidak ada variabel"], answer: 2 },
+            { q: "Jika titik-titik pada diagram pencar membentuk pola menyebar dari kiri bawah ke kanan atas, maka hubungannya adalah...", options: ["Hubungan positif", "Hubungan negatif", "Tidak ada hubungan", "Hubungan konstan"], answer: 0 },
+            { q: "Jika semakin banyak siswa bolos kelas, nilai ujiannya cenderung semakin rendah. Ini adalah contoh dari...", options: ["Asosiasi positif", "Asosiasi negatif", "Tidak ada asosiasi", "Asosiasi kualitatif"], answer: 1 },
+            { q: "Pada tabel kontingensi, hubungan dua variabel kategorikal dapat dilihat dengan...", options: ["Menghitung rata-rata", "Mencari titik potong (intercept)", "Membandingkan proporsi/persentase pada kategori", "Menggambar garis lurus"], answer: 2 },
+            { q: "Jika titik-titik pada diagram pencar tersebar acak tanpa membentuk pola garis, kesimpulannya adalah...", options: ["Hubungan sangat kuat", "Hubungan positif", "Hubungan negatif", "Tidak ada hubungan (nol)"], answer: 3 },
+            { q: "Contoh hubungan yang kemungkinan besar memiliki asosiasi positif adalah...", options: ["Jam tidur dan rasa kantuk di kelas", "Lama waktu berlatih dan kecepatan lari", "Usia mobil dan harga jual mobil", "Waktu belajar dan nilai ujian"], answer: 3 },
+            { q: "Diketahui tabel ekstrakurikuler (Pramuka, PMR) dan Jenis Kelamin (L/P). Apa jenis variabel pada kasus ini?", options: ["Keduanya variabel kuantitatif", "Keduanya variabel kualitatif (kategorikal)", "Satu kualitatif, satu kuantitatif", "Variabel kontinu"], answer: 1 }
+        ];
+
+        // Utility: Mengacak Array
+        const shuffleArray = (array) => {
+            let shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        };
+
+        const ScatterPlot = ({ data, type }) => {
+            return (
+                <div className="relative w-full h-full flex flex-col items-center justify-center p-4">
+                    <svg viewBox="0 0 400 300" className="w-full h-full max-h-64 bg-slate-50 border-l-4 border-b-4 border-slate-700">
+                        {/* Grid lines */}
+                        <line x1="0" y1="75" x2="400" y2="75" stroke="#e2e8f0" strokeWidth="1" />
+                        <line x1="0" y1="150" x2="400" y2="150" stroke="#e2e8f0" strokeWidth="1" />
+                        <line x1="0" y1="225" x2="400" y2="225" stroke="#e2e8f0" strokeWidth="1" />
+                        <line x1="100" y1="0" x2="100" y2="300" stroke="#e2e8f0" strokeWidth="1" />
+                        <line x1="200" y1="0" x2="200" y2="300" stroke="#e2e8f0" strokeWidth="1" />
+                        <line x1="300" y1="0" x2="300" y2="300" stroke="#e2e8f0" strokeWidth="1" />
+                        
+                        {/* Points */}
+                        {data.map((pt, i) => (
+                            <circle key={i} cx={pt.x * 4} cy={300 - (pt.y * 3)} r="6" fill="#3b82f6" fillOpacity="0.7" stroke="#1e3a8a" strokeWidth="1.5">
+                                <title>X: {pt.x}, Y: {pt.y}</title>
+                            </circle>
+                        ))}
+                    </svg>
+                    <div className="flex justify-between w-full text-xs font-semibold text-slate-500 mt-2">
+                        <span>Rendah (X)</span>
+                        <span>Tinggi (X)</span>
+                    </div>
+                </div>
+            );
+        };
+
+        const SimpleBarChart = () => (
+            <svg viewBox="0 0 300 200" className="w-full h-full max-h-48">
+                <line x1="40" y1="160" x2="280" y2="160" stroke="#334155" strokeWidth="2" />
+                <line x1="40" y1="20" x2="40" y2="160" stroke="#334155" strokeWidth="2" />
+                
+                {/* Laki-Laki */}
+                <rect x="70" y="60" width="40" height="100" fill="#3b82f6" rx="2" />
+                <rect x="110" y="100" width="40" height="60" fill="#facc15" rx="2" />
+                <text x="90" y="180" fontSize="12" textAnchor="middle" fill="#334155" fontWeight="bold">Laki-laki</text>
+                
+                {/* Perempuan */}
+                <rect x="180" y="90" width="40" height="70" fill="#3b82f6" rx="2" />
+                <rect x="220" y="50" width="40" height="110" fill="#facc15" rx="2" />
+                <text x="200" y="180" fontSize="12" textAnchor="middle" fill="#334155" fontWeight="bold">Perempuan</text>
+                
+                {/* Legend */}
+                <rect x="230" y="10" width="10" height="10" fill="#3b82f6" />
+                <text x="245" y="20" fontSize="10" fill="#334155">Suka Math</text>
+                <rect x="230" y="25" width="10" height="10" fill="#facc15" />
+                <text x="245" y="35" fontSize="10" fill="#334155">Tdk Suka</text>
+            </svg>
+        );
+
+        const TopNav = ({ current, setPage }) => (
+            <div className="h-16 bg-brand-blue text-white flex items-center justify-between px-6 shadow-md z-10 shrink-0">
+                <div className="flex items-center gap-3 font-bold text-xl">
+                    <i className="fa-solid fa-chart-line text-brand-yellow"></i>
+                    <span>Asosiasi Dua Variabel</span>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={() => setPage('home')} className={`px-4 py-2 rounded-lg font-semibold transition ${current === 'home' ? 'bg-brand-yellow text-brand-blue' : 'hover:bg-brand-lightBlue'}`}>
+                        <i className="fa-solid fa-home mr-2"></i>Beranda
+                    </button>
+                    <button onClick={() => setPage('tujuan')} className={`px-4 py-2 rounded-lg font-semibold transition ${current === 'tujuan' ? 'bg-brand-yellow text-brand-blue' : 'hover:bg-brand-lightBlue'}`}>
+                        <i className="fa-solid fa-bullseye mr-2"></i>Tujuan Pembelajaran
+                    </button>
+                    <button onClick={() => setPage('materi')} className={`px-4 py-2 rounded-lg font-semibold transition ${current === 'materi' ? 'bg-brand-yellow text-brand-blue' : 'hover:bg-brand-lightBlue'}`}>
+                        <i className="fa-solid fa-book-open mr-2"></i>Materi
+                    </button>
+                    <button onClick={() => setPage('kuis')} className={`px-4 py-2 rounded-lg font-semibold transition ${current === 'kuis' || current === 'hasil' ? 'bg-brand-yellow text-brand-blue' : 'hover:bg-brand-lightBlue'}`}>
+                        <i className="fa-solid fa-gamepad mr-2"></i>Kuis
+                    </button>
+                </div>
+            </div>
+        );
+
+        const HomeView = ({ setPage }) => (
+            <div className="flex-1 flex flex-col items-center justify-center bg-brand-gray relative overflow-hidden text-center p-8">
+                {/* Decorative background shapes */}
+                <div className="absolute top-[-10%] left-[-5%] w-64 h-64 bg-brand-yellow opacity-20 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-[-10%] right-[-5%] w-80 h-80 bg-brand-blue opacity-10 rounded-full blur-3xl"></div>
+                
+                <div className="z-10 max-w-4xl">
+                    <div className="bg-brand-blue text-brand-yellow font-bold px-4 py-1 rounded-full inline-block mb-4 text-sm tracking-wider uppercase">
+                        Matematika Tingkat Lanjut – Kelas XII SMA
+                    </div>
+                    <h1 className="text-5xl font-extrabold text-brand-dark mb-6 leading-tight">
+                        Hubungan Asosiasi <br/><span className="text-brand-lightBlue">Dua Variabel</span>
+                    </h1>
+                    
+                    <div className="flex items-center justify-center gap-8 mb-10">
+                        <div className="bg-white p-4 rounded-2xl shadow-lg flex items-center gap-4 w-56 border-t-4 border-brand-yellow">
+                            <i className="fa-solid fa-users text-4xl text-brand-lightBlue"></i>
+                            <div className="text-left"><p className="font-bold text-sm">Kategorikal</p><p className="text-xs text-slate-500">Tabel Kontingensi</p></div>
+                        </div>
+                        <div className="text-3xl text-brand-blue font-black animate-pulse"><i className="fa-solid fa-arrow-right-arrow-left"></i></div>
+                        <div className="bg-white p-4 rounded-2xl shadow-lg flex items-center gap-4 w-56 border-t-4 border-brand-blue">
+                            <i className="fa-solid fa-chart-line text-4xl text-brand-yellow"></i>
+                            <div className="text-left"><p className="font-bold text-sm">Numerikal</p><p className="text-xs text-slate-500">Diagram Pencar</p></div>
+                        </div>
+                    </div>
+
+                    <p className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto">
+                        Mari pelajari cara membaca data dan menemukan pola hubungan antara variabel kualitatif dan kuantitatif secara visual!
+                    </p>
+
+                    <button 
+                        onClick={() => setPage('tujuan')} 
+                        className="bg-brand-yellow text-brand-dark font-bold text-xl px-10 py-4 rounded-full shadow-lg btn-hover flex items-center gap-3 mx-auto"
+                    >
+                        <i className="fa-solid fa-rocket"></i> Mulai Belajar
+                    </button>
+                </div>
+            </div>
+        );
+
+        const TujuanView = ({ setPage }) => (
+            <div className="flex-1 flex flex-col items-center justify-center bg-white p-8 relative">
+                <div className="max-w-4xl text-center">
+                    <div className="inline-flex items-center justify-center w-20 h-20 bg-brand-lightBlue text-white rounded-full text-4xl mb-6 shadow-lg">
+                        <i className="fa-solid fa-bullseye"></i>
+                    </div>
+                    <h2 className="text-3xl font-bold text-brand-dark mb-8">Tujuan Pembelajaran</h2>
+                    
+                    <div className="bg-brand-gray border-l-8 border-brand-yellow p-8 rounded-r-2xl shadow-inner text-2xl leading-relaxed text-brand-dark font-medium mb-12 italic">
+                        “Murid mampu menjelaskan hubungan asosiasi antara dua variabel kualitatif (kategorikal) dan dua variabel kuantitatif (numerikal).”
+                    </div>
+
+                    <button 
+                        onClick={() => setPage('materi')} 
+                        className="bg-brand-blue text-white font-bold text-lg px-8 py-3 rounded-full shadow-md btn-hover inline-flex items-center gap-2"
+                    >
+                        Lanjut ke Materi <i className="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        );
+
+        
+        // A. Mengenal Variabel
+        const MateriA = () => (
+            <div className="h-full flex flex-col justify-center">
+                <h3 className="text-2xl font-bold text-brand-blue mb-6 flex items-center gap-3"><i className="fa-solid fa-tag text-brand-yellow"></i> A. Mengenal Variabel</h3>
+                <p className="text-slate-700 mb-6 text-lg">Dalam statistika, <strong>variabel</strong> adalah karakteristik yang diamati yang dapat memiliki nilai berbeda-beda. Variabel terbagi menjadi dua jenis utama:</p>
+                
+                <div className="grid grid-cols-2 gap-6 flex-1">
+                    <div className="bg-blue-50 p-6 rounded-xl border border-blue-200 shadow-sm flex flex-col">
+                        <div className="flex items-center gap-3 mb-4 text-brand-blue font-bold text-xl">
+                            <i className="fa-solid fa-shapes text-3xl"></i> Variabel Kualitatif (Kategorikal)
+                        </div>
+                        <p className="text-slate-600 mb-4 flex-1">Data yang berupa kelompok, kategori, atau kualitas. Tidak memiliki nilai numerik bermakna secara matematis.</p>
+                        <div className="bg-white p-4 rounded-lg text-sm border-l-4 border-blue-400">
+                            <strong>Contoh di Sekolah:</strong><br/>
+                            • Jenis Kelamin (Laki-laki / Perempuan)<br/>
+                            • Pilihan Ekstrakurikuler (Pramuka / PMR / Rohis)<br/>
+                            • Jenis Transportasi (Jalan kaki / Motor / Angkot)
+                        </div>
+                    </div>
+
+                    <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-200 shadow-sm flex flex-col">
+                        <div className="flex items-center gap-3 mb-4 text-yellow-700 font-bold text-xl">
+                            <i className="fa-solid fa-hashtag text-3xl"></i> Variabel Kuantitatif (Numerikal)
+                        </div>
+                        <p className="text-slate-600 mb-4 flex-1">Data yang berupa angka dan dapat diukur. Dapat dilakukan operasi matematika seperti rata-rata.</p>
+                        <div className="bg-white p-4 rounded-lg text-sm border-l-4 border-yellow-400">
+                            <strong>Contoh di Sekolah:</strong><br/>
+                            • Usia Murid (16, 17, 18 tahun)<br/>
+                            • Tinggi Badan (165 cm, 170 cm)<br/>
+                            • Waktu Belajar (2 jam, 3 jam)<br/>
+                            • Nilai Matematika (85, 90, 78)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // B. Kualitatif
+        const MateriB = () => (
+            <div className="h-full flex flex-col justify-center">
+                <h3 className="text-2xl font-bold text-brand-blue mb-4 flex items-center gap-3"><i className="fa-solid fa-table-cells text-brand-yellow"></i> B. Hubungan Dua Variabel Kualitatif</h3>
+                <p className="text-slate-700 mb-4 text-lg">Asosiasi antara dua variabel kategorikal dapat dilihat dengan <strong>Tabel Kontingensi</strong> (Tabel Silang). Kita membandingkan proporsi/frekuensi antar kategori.</p>
+                
+                <div className="grid grid-cols-2 gap-8 items-center bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <div>
+                        <h4 className="font-bold text-slate-800 mb-3 text-center">Tabel Kontingensi:<br/>Kebiasaan Sarapan & Fokus Belajar</h4>
+                        <table className="w-full text-center border-collapse text-sm">
+                            <thead>
+                                <tr className="bg-brand-blue text-white">
+                                    <th className="border p-2"></th>
+                                    <th className="border p-2">Fokus</th>
+                                    <th className="border p-2">Tidak Fokus</th>
+                                    <th className="border p-2 bg-slate-700">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td className="border p-2 font-bold bg-slate-100">Sarapan</td>
+                                    <td className="border p-2 bg-blue-50 font-bold text-brand-blue">30 (75%)</td>
+                                    <td className="border p-2">10 (25%)</td>
+                                    <td className="border p-2 font-bold">40</td>
+                                </tr>
+                                <tr>
+                                    <td className="border p-2 font-bold bg-slate-100">Tidak Sarapan</td>
+                                    <td className="border p-2">10 (25%)</td>
+                                    <td className="border p-2 bg-yellow-100 font-bold text-yellow-700">30 (75%)</td>
+                                    <td className="border p-2 font-bold">40</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p className="text-sm text-slate-500 mt-3 bg-blue-50 p-3 rounded text-center">
+                            <strong>Kesimpulan Visual:</strong> Terlihat perbedaan pola. Murid yang sarapan cenderung lebih fokus. Ada asosiasi!
+                        </p>
+                    </div>
+                    <div className="flex flex-col items-center">
+                        <h4 className="font-bold text-slate-800 mb-2">Diagram Batang Proporsi</h4>
+                        <div className="w-full flex-1">
+                             <svg viewBox="0 0 300 200" className="w-full h-full max-h-48">
+                                {/* Axes */}
+                                <line x1="40" y1="160" x2="280" y2="160" stroke="#94a3b8" strokeWidth="2" />
+                                <text x="90" y="180" fontSize="12" textAnchor="middle" fill="#334155" fontWeight="bold">Sarapan</text>
+                                <text x="210" y="180" fontSize="12" textAnchor="middle" fill="#334155" fontWeight="bold">Tdk Sarapan</text>
+                                
+                                {/* Bars Sarapan */}
+                                <rect x="70" y="40" width="40" height="120" fill="#3b82f6" rx="2" /> {/* 75% Fokus */}
+                                <rect x="110" y="120" width="40" height="40" fill="#facc15" rx="2" /> {/* 25% Tdk Fokus */}
+                                
+                                {/* Bars Tidak Sarapan */}
+                                <rect x="190" y="120" width="40" height="40" fill="#3b82f6" rx="2" /> {/* 25% Fokus */}
+                                <rect x="230" y="40" width="40" height="120" fill="#facc15" rx="2" /> {/* 75% Tdk Fokus */}
+
+                                {/* Legend */}
+                                <rect x="230" y="0" width="12" height="12" fill="#3b82f6" />
+                                <text x="250" y="10" fontSize="10" fill="#334155">Fokus</text>
+                                <rect x="230" y="16" width="12" height="12" fill="#facc15" />
+                                <text x="250" y="26" fontSize="10" fill="#334155">Tdk Fokus</text>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // C. Kuantitatif
+        const MateriC = () => {
+            const data = [
+                {x: 10, y: 30}, {x: 20, y: 40}, {x: 30, y: 45}, {x: 40, y: 60},
+                {x: 50, y: 65}, {x: 60, y: 75}, {x: 70, y: 80}, {x: 80, y: 90}, {x: 90, y: 95}
+            ];
+            return (
+                <div className="h-full flex flex-col justify-center">
+                    <h3 className="text-2xl font-bold text-brand-blue mb-4 flex items-center gap-3"><i className="fa-solid fa-arrow-trend-up text-brand-yellow"></i> C. Hubungan Dua Variabel Kuantitatif</h3>
+                    <p className="text-slate-700 mb-4 text-lg">Untuk variabel berupa angka (numerik), kita menggunakan <strong>Diagram Pencar (Scatter Plot)</strong>. Setiap titik mewakili satu individu dengan dua nilai (X dan Y).</p>
+                    
+                    <div className="grid grid-cols-2 gap-6 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <div className="flex flex-col justify-center">
+                            <h4 className="font-bold text-xl text-slate-800 mb-3 border-b-2 border-brand-yellow inline-block pb-1">Contoh Kasus</h4>
+                            <ul className="text-slate-700 space-y-4 mb-4">
+                                <li className="flex items-start gap-2"><i className="fa-solid fa-clock text-brand-lightBlue mt-1"></i> <div><strong>Waktu Belajar & Nilai Ujian</strong><br/><span className="text-sm">Apakah belajar lebih lama menghasilkan nilai lebih tinggi?</span></div></li>
+                                <li className="flex items-start gap-2"><i className="fa-solid fa-bed text-brand-lightBlue mt-1"></i> <div><strong>Jam Tidur & Konsentrasi</strong><br/><span className="text-sm">Apakah kurang tidur menurunkan fokus belajar?</span></div></li>
+                            </ul>
+                            <div className="bg-yellow-50 p-3 rounded text-sm text-yellow-800 border-l-4 border-brand-yellow">
+                                Dengan diagram pencar, kita bisa melihat apakah titik-titik membentuk suatu <strong>pola garis</strong>.
+                            </div>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-xl flex flex-col items-center">
+                            <h4 className="font-bold text-slate-700 text-sm mb-2 text-center">Diagram Pencar:<br/>Waktu Belajar (X) vs Nilai Matematika (Y)</h4>
+                            <div className="w-full h-48 relative">
+                                <ScatterPlot data={data} type="positive" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // D. Membaca Diagram Pencar
+        const MateriD = () => {
+            const [selectedType, setSelectedType] = useState('positive');
+            
+            const dataSets = {
+                positive: [{x:10,y:20},{x:20,y:35},{x:30,y:40},{x:40,y:55},{x:50,y:60},{x:60,y:80},{x:70,y:85},{x:80,y:95},{x:90,y:100}],
+                negative: [{x:10,y:90},{x:20,y:85},{x:30,y:70},{x:40,y:60},{x:50,y:50},{x:60,y:45},{x:70,y:30},{x:80,y:20},{x:90,y:10}],
+                none: [{x:10,y:50},{x:20,y:20},{x:30,y:80},{x:40,y:10},{x:50,y:90},{x:60,y:40},{x:70,y:70},{x:80,y:30},{x:90,y:60},{x:15,y:75},{x:45,y:45},{x:85,y:85}]
+            };
+
+            const info = {
+                positive: { title: "Pola Positif (Naik)", desc: "Jika nilai X membesar, nilai Y juga cenderung membesar. (Contoh: Waktu Belajar & Nilai Ujian)" },
+                negative: { title: "Pola Negatif (Turun)", desc: "Jika nilai X membesar, nilai Y cenderung mengecil. (Contoh: Jumlah Absen & Nilai Ujian)" },
+                none: { title: "Tidak Berpola (Tidak Ada Asosiasi)", desc: "Titik-titik tersebar acak. X dan Y tidak memiliki hubungan yang jelas. (Contoh: Ukuran Sepatu & Nilai Ujian)" }
+            };
+
+            return (
+                <div className="h-full flex flex-col justify-center text-center">
+                    <h3 className="text-2xl font-bold text-brand-blue mb-4">D. Membaca Diagram Pencar</h3>
+                    <p className="text-slate-600 mb-4">Klik tombol di bawah ini untuk melihat berbagai pola hubungan secara visual.</p>
+                    
+                    <div className="flex justify-center gap-4 mb-6">
+                        <button onClick={() => setSelectedType('positive')} className={`px-4 py-2 rounded-full font-bold text-sm transition ${selectedType === 'positive' ? 'bg-green-500 text-white shadow-md' : 'bg-gray-200 text-gray-600'}`}>Hubungan Positif</button>
+                        <button onClick={() => setSelectedType('negative')} className={`px-4 py-2 rounded-full font-bold text-sm transition ${selectedType === 'negative' ? 'bg-red-500 text-white shadow-md' : 'bg-gray-200 text-gray-600'}`}>Hubungan Negatif</button>
+                        <button onClick={() => setSelectedType('none')} className={`px-4 py-2 rounded-full font-bold text-sm transition ${selectedType === 'none' ? 'bg-slate-500 text-white shadow-md' : 'bg-gray-200 text-gray-600'}`}>Tidak Berpola</button>
+                    </div>
+
+                    <div className="flex gap-6 max-w-3xl mx-auto h-64 w-full bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                        <div className="flex-1">
+                            <ScatterPlot data={dataSets[selectedType]} />
+                        </div>
+                        <div className="w-1/3 flex flex-col justify-center text-left bg-slate-50 p-4 rounded-lg border border-slate-100">
+                            <h4 className="font-bold text-lg text-brand-blue mb-2">{info[selectedType].title}</h4>
+                            <p className="text-sm text-slate-700 leading-relaxed">{info[selectedType].desc}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // E. Membandingkan
+        const MateriE = () => (
+            <div className="h-full flex flex-col justify-center">
+                <h3 className="text-2xl font-bold text-brand-blue mb-4 text-center">E. Ringkasan Perbandingan Asosiasi</h3>
+                
+                <div className="flex gap-8 justify-center items-stretch flex-1 p-2">
+                    {/* Kualitatif Card */}
+                    <div className="w-1/2 bg-white rounded-2xl shadow-md border-t-8 border-brand-yellow p-6 flex flex-col text-center">
+                        <div className="text-4xl text-brand-lightBlue mb-3"><i className="fa-solid fa-users-rectangle"></i></div>
+                        <h4 className="font-bold text-xl text-slate-800 mb-2">Variabel Kualitatif<br/><span className="text-sm font-normal text-slate-500">(Kategorikal)</span></h4>
+                        <ul className="text-sm text-slate-600 text-left space-y-3 bg-slate-50 p-4 rounded-lg flex-1">
+                            <li><i className="fa-solid fa-check text-green-500 mr-2"></i> Alat: <strong>Tabel Kontingensi</strong></li>
+                            <li><i className="fa-solid fa-check text-green-500 mr-2"></i> Visual: <strong>Diagram Batang Berkelompok</strong></li>
+                            <li><i className="fa-solid fa-check text-green-500 mr-2"></i> Cara Baca: Membandingkan <strong>proporsi/persentase</strong> antar kelompok.</li>
+                        </ul>
+                    </div>
+
+                    {/* Kuantitatif Card */}
+                    <div className="w-1/2 bg-white rounded-2xl shadow-md border-t-8 border-brand-blue p-6 flex flex-col text-center">
+                        <div className="text-4xl text-brand-yellow mb-3"><i className="fa-solid fa-chart-scatter"></i></div>
+                        <h4 className="font-bold text-xl text-slate-800 mb-2">Variabel Kuantitatif<br/><span className="text-sm font-normal text-slate-500">(Numerikal)</span></h4>
+                        <ul className="text-sm text-slate-600 text-left space-y-3 bg-slate-50 p-4 rounded-lg flex-1">
+                            <li><i className="fa-solid fa-check text-green-500 mr-2"></i> Alat: <strong>Pasangan Data (X, Y)</strong></li>
+                            <li><i className="fa-solid fa-check text-green-500 mr-2"></i> Visual: <strong>Diagram Pencar (Scatter Plot)</strong></li>
+                            <li><i className="fa-solid fa-check text-green-500 mr-2"></i> Cara Baca: Melihat <strong>pola garis</strong> (positif, negatif, tidak ada).</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // F. Aktivitas Interaktif
+        const MateriF = () => {
+            const cases = [
+                { q: "Jenis Kelamin & Ekstrakurikuler Pilihan", type: "kual", exp: "Keduanya berupa kategori/kelompok, bukan angka yang bisa diukur." },
+                { q: "Tinggi Badan & Berat Badan Murid", type: "kuan", exp: "Keduanya berupa angka hasil pengukuran." },
+                { q: "Warna Kesukaan & Metode Belajar", type: "kual", exp: "Keduanya adalah kategori atribut kualitatif." },
+                { q: "Jam Bermain Gadget & Nilai Ulangan", type: "kuan", exp: "Keduanya dapat dihitung dengan angka (jam dan skor)." }
+            ];
+            
+            const [idx, setIdx] = useState(0);
+            const [feedback, setFeedback] = useState(null);
+
+            const handleAnswer = (ansType) => {
+                if(ansType === cases[idx].type) {
+                    setFeedback({ status: 'correct', msg: 'Benar! ' + cases[idx].exp });
+                } else {
+                    setFeedback({ status: 'wrong', msg: 'Coba lagi! Ingat perbedaan angka vs kategori.' });
+                }
+            };
+
+            const nextCase = () => {
+                setFeedback(null);
+                setIdx((prev) => (prev + 1) % cases.length);
+            };
+
+            return (
+                <div className="h-full flex flex-col items-center justify-center">
+                    <h3 className="text-3xl font-bold text-brand-blue mb-2"><i className="fa-solid fa-gamepad text-brand-yellow"></i> Amati dan Tentukan</h3>
+                    <p className="text-slate-600 mb-8">Manakah jenis variabel untuk pasangan data di bawah ini?</p>
+
+                    <div className="bg-white p-8 rounded-2xl shadow-lg border-2 border-slate-100 text-center w-full max-w-2xl relative overflow-hidden">
+                        
+                        <div className="text-sm font-bold text-slate-400 mb-2">Kasus {idx + 1} dari {cases.length}</div>
+                        <h4 className="text-2xl font-extrabold text-slate-800 mb-8 bg-blue-50 py-4 rounded-xl border border-blue-100">
+                            {cases[idx].q}
+                        </h4>
+
+                        {!feedback ? (
+                            <div className="flex gap-4 justify-center">
+                                <button onClick={() => handleAnswer('kual')} className="flex-1 bg-brand-lightBlue hover:bg-brand-blue text-white font-bold py-4 px-6 rounded-xl transition shadow-md">
+                                    Dua Variabel Kualitatif (Kategorikal)
+                                </button>
+                                <button onClick={() => handleAnswer('kuan')} className="flex-1 bg-brand-yellow hover:bg-yellow-500 text-brand-dark font-bold py-4 px-6 rounded-xl transition shadow-md">
+                                    Dua Variabel Kuantitatif (Numerikal)
+                                </button>
+                            </div>
+                        ) : (
+                            <div className={`p-6 rounded-xl ${feedback.status === 'correct' ? 'bg-green-100 border-2 border-green-400' : 'bg-red-100 border-2 border-red-400'} animate-[pulse_0.5s_ease-in-out]`}>
+                                <div className={`text-2xl font-bold mb-2 ${feedback.status === 'correct' ? 'text-green-700' : 'text-red-700'}`}>
+                                    {feedback.status === 'correct' ? <><i className="fa-solid fa-circle-check"></i> Luar Biasa!</> : <><i className="fa-solid fa-circle-xmark"></i> Kurang Tepat</>}
+                                </div>
+                                <p className="text-slate-700 mb-4 font-medium">{feedback.msg}</p>
+                                <button onClick={nextCase} className="bg-slate-800 text-white px-6 py-2 rounded-lg font-bold hover:bg-slate-700 transition">
+                                    {feedback.status === 'correct' ? 'Lanjut Kasus Berikutnya' : 'Coba Soal Lain'} <i className="fa-solid fa-arrow-right ml-2"></i>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const MateriView = ({ setPage }) => {
+            const [subPage, setSubPage] = useState(0);
+            const totalSubPages = 6;
+
+            const renderSubPage = () => {
+                switch(subPage) {
+                    case 0: return <MateriA />;
+                    case 1: return <MateriB />;
+                    case 2: return <MateriC />;
+                    case 3: return <MateriD />;
+                    case 4: return <MateriE />;
+                    case 5: return <MateriF />;
+                    default: return <MateriA />;
+                }
+            };
+
+            const progressWidth = ((subPage + 1) / totalSubPages) * 100;
+
+            return (
+                <div className="flex-1 flex flex-col bg-slate-100 relative overflow-hidden">
+                    {/* Progress Bar */}
+                    <div className="h-2 w-full bg-slate-200">
+                        <div className="h-full bg-brand-yellow transition-all duration-300 ease-in-out" style={{ width: `${progressWidth}%` }}></div>
+                    </div>
+                    
+                    {/* Content Area */}
+                    <div className="flex-1 p-8 overflow-hidden">
+                        {renderSubPage()}
+                    </div>
+
+                    {/* Bottom Navigation */}
+                    <div className="h-20 bg-white border-t border-slate-200 flex justify-between items-center px-8 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+                        <button 
+                            onClick={() => subPage > 0 ? setSubPage(subPage - 1) : setPage('tujuan')}
+                            className="text-brand-blue font-bold px-6 py-2 rounded-lg border-2 border-brand-blue hover:bg-blue-50 transition flex items-center gap-2"
+                        >
+                            <i className="fa-solid fa-arrow-left"></i> Sebelumnya
+                        </button>
+                        
+                        <div className="flex gap-2">
+                            {[...Array(totalSubPages)].map((_, i) => (
+                                <div key={i} className={`w-3 h-3 rounded-full ${i === subPage ? 'bg-brand-blue scale-125' : 'bg-slate-300'}`}></div>
+                            ))}
+                        </div>
+
+                        <button 
+                            onClick={() => subPage < totalSubPages - 1 ? setSubPage(subPage + 1) : setPage('kuis')}
+                            className="bg-brand-blue text-white font-bold px-6 py-2 rounded-lg hover:bg-brand-lightBlue transition shadow-md flex items-center gap-2"
+                        >
+                            {subPage < totalSubPages - 1 ? 'Berikutnya' : 'Mulai Kuis'} <i className="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const QuizView = ({ setPage, setFinalScore }) => {
+            const [questions, setQuestions] = useState([]);
+            const [currentQ, setCurrentQ] = useState(0);
+            const [selectedOpt, setSelectedOpt] = useState(null);
+            const [score, setScore] = useState(0);
+            const [showFeedback, setShowFeedback] = useState(false);
+
+            // Inisialisasi kuis (acak urutan soal dan pilihan)
+            useEffect(() => {
+                const initQuiz = rawQuizData.map(q => {
+                    const optionsWithIndex = q.options.map((opt, idx) => ({ text: opt, originalIndex: idx }));
+                    return {
+                        ...q,
+                        shuffledOptions: shuffleArray(optionsWithIndex)
+                    };
+                });
+                setQuestions(shuffleArray(initQuiz));
+            }, []);
+
+            if(questions.length === 0) return <div>Loading...</div>;
+
+            const q = questions[currentQ];
+            const isCorrect = selectedOpt !== null && q.shuffledOptions[selectedOpt].originalIndex === q.answer;
+
+            const handleSelect = (index) => {
+                if (showFeedback) return;
+                setSelectedOpt(index);
+                setShowFeedback(true);
+                
+                if (q.shuffledOptions[index].originalIndex === q.answer) {
+                    setScore(prev => prev + 1);
+                }
+            };
+
+            const nextQuestion = () => {
+                if (currentQ < questions.length - 1) {
+                    setCurrentQ(prev => prev + 1);
+                    setSelectedOpt(null);
+                    setShowFeedback(false);
+                } else {
+                    // Kuis selesai
+                    const finalScoreData = {
+                        correct: score + (isCorrect ? 1 : 0) - (isCorrect? 1: 0), // handle latest score update accurately
+                        total: questions.length
+                    };
+                    // re-calculate just to be safe with React state batching
+                    const realScore = score + (isCorrect && !showFeedback ? 1 : 0); // fallback logic
+                    
+                    setFinalScore({ correct: score, total: questions.length });
+                    setPage('hasil');
+                }
+            };
+
+            return (
+                <div className="flex-1 flex flex-col bg-slate-50 relative">
+                    <div className="bg-brand-blue text-white p-4 flex justify-between items-center shrink-0">
+                        <div className="font-bold text-lg"><i className="fa-solid fa-pen-to-square text-brand-yellow mr-2"></i> Kuis Evaluasi</div>
+                        <div className="bg-brand-dark px-4 py-1 rounded-full text-sm font-bold border border-slate-600">
+                            Soal {currentQ + 1} dari {questions.length}
+                        </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col p-8 max-w-4xl mx-auto w-full justify-center">
+                        <h3 className="text-2xl font-bold text-slate-800 mb-8 text-center leading-snug">{q.q}</h3>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            {q.shuffledOptions.map((opt, idx) => {
+                                let btnClass = "bg-white border-2 border-slate-200 text-slate-700 hover:border-brand-blue hover:bg-blue-50";
+                                if (showFeedback) {
+                                    if (opt.originalIndex === q.answer) {
+                                        btnClass = "bg-green-100 border-2 border-green-500 text-green-800 shadow-md"; // Correct Answer
+                                    } else if (selectedOpt === idx) {
+                                        btnClass = "bg-red-100 border-2 border-red-500 text-red-800"; // Wrong selected
+                                    } else {
+                                        btnClass = "bg-white border-2 border-slate-100 text-slate-400 opacity-50"; // Others disabled
+                                    }
+                                }
+
+                                const letters = ['A', 'B', 'C', 'D'];
+
+                                return (
+                                    <button 
+                                        key={idx}
+                                        onClick={() => handleSelect(idx)}
+                                        disabled={showFeedback}
+                                        className={`p-4 rounded-xl font-semibold text-left flex items-center transition-all ${btnClass}`}
+                                    >
+                                        <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center mr-4 text-slate-500 shrink-0 border border-slate-200">
+                                            {letters[idx]}
+                                        </div>
+                                        {opt.text}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {showFeedback && (
+                            <div className="mt-8 flex justify-center animate-[fadeIn_0.3s_ease-in-out]">
+                                <button 
+                                    onClick={nextQuestion}
+                                    className="bg-brand-yellow text-brand-dark font-bold text-lg px-10 py-3 rounded-full shadow-lg btn-hover flex items-center gap-2"
+                                >
+                                    {currentQ < questions.length - 1 ? 'Soal Berikutnya' : 'Lihat Hasil Akhir'} <i className="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const ResultView = ({ setPage, finalScore }) => {
+            const percentage = (finalScore.correct / finalScore.total) * 100;
+            const wrong = finalScore.total - finalScore.correct;
+            
+            let category = "Perlu Belajar Kembali";
+            let color = "text-red-500";
+            let icon = "fa-face-frown-open";
+            
+            if (percentage >= 90) { category = "Sangat Baik"; color = "text-green-500"; icon = "fa-award"; }
+            else if (percentage >= 70) { category = "Baik"; color = "text-blue-500"; icon = "fa-thumbs-up"; }
+            else if (percentage >= 50) { category = "Cukup"; color = "text-yellow-500"; icon = "fa-face-smile"; }
+
+            const [showModal, setShowModal] = useState(false);
+            const [name, setName] = useState("");
+            const [studentClass, setStudentClass] = useState("");
+
+            const generatePDF = () => {
+                if(!name || !studentClass) return alert("Mohon isi Nama dan Kelas terlebih dahulu.");
+
+                const doc = new window.jspdf.jsPDF({ orientation: 'landscape', format: 'a4' });
+                const width = doc.internal.pageSize.getWidth();
+                const height = doc.internal.pageSize.getHeight();
+
+                // Background
+                doc.setFillColor(30, 58, 138); // brand-blue
+                doc.rect(0, 0, width, height, 'F');
+                doc.setFillColor(255, 255, 255); // white inner
+                doc.rect(10, 10, width - 20, height - 20, 'F');
+                doc.setDrawColor(250, 204, 21); // brand-yellow border
+                doc.setLineWidth(2);
+                doc.rect(15, 15, width - 30, height - 30, 'S');
+
+                // Text Formatting
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(30, 58, 138);
+                doc.setFontSize(28);
+                doc.text("SERTIFIKAT PEMBELAJARAN", width/2, 45, { align: 'center' });
+
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(14);
+                doc.setTextColor(100, 116, 139);
+                doc.text("Diberikan dengan bangga kepada:", width/2, 65, { align: 'center' });
+
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(24);
+                doc.setTextColor(15, 23, 42);
+                doc.text(name, width/2, 80, { align: 'center' });
+                
+                doc.setLineWidth(0.5);
+                doc.setDrawColor(203, 213, 225);
+                doc.line(width/2 - 60, 85, width/2 + 60, 85);
+
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(12);
+                doc.text(`Kelas: ${studentClass}`, width/2, 95, { align: 'center' });
+
+                doc.text("Telah menyelesaikan kuis materi matematika tingkat lanjut:", width/2, 115, { align: 'center' });
+                
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(30, 58, 138);
+                doc.text("“Hubungan Asosiasi antara Dua Variabel Kualitatif (Kategorikal)", width/2, 125, { align: 'center' });
+                doc.text("dan Dua Variabel Kuantitatif (Numerikal)”", width/2, 132, { align: 'center' });
+
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(16);
+                doc.setTextColor(250, 204, 21); // yellow
+                // background for score
+                doc.setFillColor(30, 58, 138);
+                doc.roundedRect(width/2 - 25, 142, 50, 15, 3, 3, 'F');
+                doc.text(`Nilai: ${Math.round(percentage)}`, width/2, 152, { align: 'center' });
+
+                // Footer
+                const today = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(10);
+                doc.setTextColor(100, 116, 139);
+                
+                doc.text(`Mata Pelajaran: Matematika`, 40, 175);
+                doc.text(`Tanggal: ${today}`, 40, 182);
+
+                doc.text("Guru Mata Pelajaran", width - 40, 170, { align: 'center' });
+                doc.line(width - 70, 185, width - 10, 185);
+
+                doc.save(`Sertifikat_Matematika_${name.replace(/\s+/g, '_')}.pdf`);
+                setShowModal(false);
+            };
+
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center bg-brand-gray relative">
+                    <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-3xl text-center border-t-8 border-brand-blue relative">
+                        <div className={`absolute -top-12 left-1/2 transform -translate-x-1/2 w-24 h-24 rounded-full flex items-center justify-center text-5xl text-white shadow-lg bg-white`}>
+                           <div className={`w-20 h-20 rounded-full flex items-center justify-center ${percentage >= 70 ? 'bg-green-500' : 'bg-red-500'}`}>
+                                <i className={`fa-solid ${icon}`}></i>
+                           </div>
+                        </div>
+
+                        <h2 className="text-3xl font-extrabold text-slate-800 mt-8 mb-2">Hasil Evaluasi</h2>
+                        <p className={`text-xl font-bold mb-8 ${color}`}>{category}</p>
+
+                        <div className="grid grid-cols-3 gap-6 mb-10">
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <div className="text-slate-500 text-sm font-semibold mb-1">Benar</div>
+                                <div className="text-3xl font-black text-green-600">{finalScore.correct}</div>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner">
+                                <div className="text-slate-500 text-sm font-semibold mb-1">Skor Akhir</div>
+                                <div className="text-5xl font-black text-brand-blue">{Math.round(percentage)}</div>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <div className="text-slate-500 text-sm font-semibold mb-1">Salah</div>
+                                <div className="text-3xl font-black text-red-500">{wrong}</div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-center gap-4">
+                            <button onClick={() => setPage('kuis')} className="px-6 py-3 rounded-full font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 transition flex items-center gap-2">
+                                <i className="fa-solid fa-rotate-right"></i> Ulangi Kuis
+                            </button>
+                            <button onClick={() => setShowModal(true)} className="px-6 py-3 rounded-full font-bold text-brand-dark bg-brand-yellow hover:bg-yellow-500 transition shadow-md flex items-center gap-2">
+                                <i className="fa-solid fa-file-pdf"></i> Unduh Sertifikat
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Modal Input Sertifikat */}
+                    {showModal && (
+                        <div className="absolute inset-0 bg-slate-900 bg-opacity-80 flex items-center justify-center z-50">
+                            <div className="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full animate-[fadeIn_0.2s_ease-in-out]">
+                                <h3 className="text-2xl font-bold text-brand-blue mb-4">Identitas Sertifikat</h3>
+                                <p className="text-slate-600 text-sm mb-4">Silakan masukkan data diri Anda sebelum mengunduh sertifikat.</p>
+                                
+                                <div className="space-y-4 mb-6 text-left">
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Nama Lengkap</label>
+                                        <input type="text" value={name} onChange={e=>setName(e.target.value)} className="w-full border border-slate-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-brand-blue outline-none" placeholder="Contoh: Budi Santoso" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Kelas</label>
+                                        <input type="text" value={studentClass} onChange={e=>setStudentClass(e.target.value)} className="w-full border border-slate-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-brand-blue outline-none" placeholder="Contoh: XII MIPA 1" />
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-3">
+                                    <button onClick={() => setShowModal(false)} className="px-4 py-2 rounded-lg text-slate-600 bg-slate-100 hover:bg-slate-200 font-semibold transition">Batal</button>
+                                    <button onClick={generatePDF} className="px-4 py-2 rounded-lg text-white bg-brand-blue hover:bg-brand-lightBlue font-bold shadow-md transition flex items-center gap-2">
+                                        <i className="fa-solid fa-download"></i> Buat PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [page, setPage] = useState('home');
+            const [finalScore, setFinalScore] = useState({ correct: 0, total: 10 });
+
+            // Pengaturan Transisi Animasi Keyframes via style
+            useEffect(() => {
+                const style = document.createElement('style');
+                style.innerHTML = `
+                    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                    .page-transition { animation: fadeIn 0.4s ease-out forwards; }
+                `;
+                document.head.appendChild(style);
+                return () => document.head.removeChild(style);
+            }, []);
+
+            return (
+                <div className="aspect-video-container bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden relative">
+                    {page !== 'home' && <TopNav current={page} setPage={setPage} />}
+                    
+                    <div key={page} className="flex-1 flex flex-col overflow-hidden page-transition">
+                        {page === 'home' && <HomeView setPage={setPage} />}
+                        {page === 'tujuan' && <TujuanView setPage={setPage} />}
+                        {page === 'materi' && <MateriView setPage={setPage} />}
+                        {page === 'kuis' && <QuizView setPage={setPage} setFinalScore={setFinalScore} />}
+                        {page === 'hasil' && <ResultView setPage={setPage} finalScore={finalScore} />}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
